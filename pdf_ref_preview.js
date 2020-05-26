@@ -18,11 +18,11 @@
     preview.style.border = '1px solid black';
     preview.style.direction = 'ltr';
 
-    const namedDest = hash.substring(1);
+    const namedDest = decodeURIComponent(hash.substring(1));
     const explicitDest =
       namedDest in destinations
         ? destinations[namedDest]
-        : JSON.parse(decodeURIComponent(namedDest));
+        : JSON.parse(namedDest);
     const pageNumber = app.pdfLinkService._cachedPageNumber(explicitDest[0]);
 
     app.pdfDocument.getPage(pageNumber).then(function (page) {
