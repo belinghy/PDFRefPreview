@@ -1,7 +1,7 @@
 (async () => {
   const app = window.PDFViewerApplication;
-  if ("_mouseoverHandler" in app) {
-    document.removeEventListener("mouseover", app._mouseoverHandler);
+  if ('_mouseoverHandler' in app) {
+    document.removeEventListener('mouseover', app._mouseoverHandler);
     delete app._mouseoverHandler;
     return;
   }
@@ -11,15 +11,15 @@
   const previewDocument = await loadingTask.promise;
   const destinations = await previewDocument.getDestinations();
 
-  async function mouseoverHandler (event) {
-    if (event.target.className != "internalLink") return;
+  async function mouseoverHandler(event) {
+    if (event.target.className != 'internalLink') return;
 
     const hash = event.target.hash;
     const parent = event.target.parentElement;
 
-    const preview = document.createElement("canvas");
-    preview.style.border = "1px solid black";
-    preview.style.direction = "ltr";
+    const preview = document.createElement('canvas');
+    preview.style.border = '1px solid black';
+    preview.style.direction = 'ltr';
 
     const namedDest = hash.substring(1);
     const explicitDest =
@@ -44,7 +44,7 @@
       preview.width = viewport.width;
 
       const renderContext = {
-        canvasContext: preview.getContext("2d"),
+        canvasContext: preview.getContext('2d'),
         viewport: viewport,
       };
       page.render(renderContext);
@@ -52,10 +52,10 @@
 
     parent.appendChild(preview);
 
-    parent.addEventListener("mouseleave", function (event) {
+    parent.addEventListener('mouseleave', function (event) {
       preview.remove();
     });
   }
-  document.addEventListener("mouseover", mouseoverHandler);
+  document.addEventListener('mouseover', mouseoverHandler);
   app._mouseoverHandler = mouseoverHandler;
 })();
