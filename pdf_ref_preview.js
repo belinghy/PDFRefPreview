@@ -1,15 +1,12 @@
 (async () => {
   const app = window.PDFViewerApplication;
-  if ('_mouseoverHandler' in app) {
-    document.removeEventListener('mouseover', app._mouseoverHandler);
-    delete app._mouseoverHandler;
+  if ('_previewHandler' in app) {
+    document.removeEventListener('mouseover', app._previewHandler);
+    delete app._previewHandler;
     return;
   }
 
-  let data = await app.pdfDocument.getData();
-  let loadingTask = pdfjsLib.getDocument({ data: data });
-  const previewDocument = await loadingTask.promise;
-  const destinations = await previewDocument.getDestinations();
+  const destinations = await app.pdfDocument.getDestinations();
 
   async function mouseoverHandler(event) {
     if (event.target.className != 'internalLink') return;
@@ -28,7 +25,7 @@
         : JSON.parse(decodeURIComponent(namedDest));
     const pageNumber = app.pdfLinkService._cachedPageNumber(explicitDest[0]);
 
-    previewDocument.getPage(pageNumber).then(function (page) {
+    app.pdfDocument.getPage(pageNumber).then(function (page) {
       const tempViewport = page.getViewport({ scale: 1.0 });
       preview.style.height = `${tempViewport.height}px`;
       preview.style.width = `${tempViewport.width}px`;
@@ -57,5 +54,5 @@
     });
   }
   document.addEventListener('mouseover', mouseoverHandler);
-  app._mouseoverHandler = mouseoverHandler;
+  app._previewHandler = mouseoverHandler;
 })();
