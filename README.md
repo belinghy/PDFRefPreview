@@ -109,7 +109,7 @@ javascript:(async function togglePreview() {
 
 ## Chrome
 
-To use in Chrome, follow the build and install instructions [pdf.js](src/pdf.js/README.md) README file for Chrome, e.g.,
+To use in Chrome, follow the build and install instructions `src/pdf.js` README file for Chrome, e.g.,
 
 ```sh
 git clone git@github.com:belinghy/PDFRefPreview.git --recu
@@ -122,7 +122,7 @@ gulp chromium
 
 Then open Chrome, go to `Tools > Extension` and load the (unpackaged) extension from the directory `build/chromium`.
 
-The preview function can be customized by tweaking [pdf_ref_preview.js](src/pdf.js/web/pdf_ref_preview.js).
-The `togglePreview` function is called in [app.js](src/pdf.js/web/app.js).
+The preview function can be customized by tweaking `src/pdf.js/web/pdf_ref_preview.js`.
+The `togglePreview` function is called in `src/pdf.js/web/app.js`.
 
 By default, the preview function is enabled on every PDF and can be toggled by pressing `q`.
