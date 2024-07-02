@@ -51,8 +51,7 @@ javascript:(async function togglePreview() {
       namedDest in destinations
         ? destinations[namedDest]
         : JSON.parse(namedDest);
-    const pageNumber = app.pdfLinkService._cachedPageNumber(explicitDest[0]);
-
+    const pageNumber = app.pdfDocument.cachedPageNumber(explicitDest[0]);
     app.pdfDocument.getPage(pageNumber).then(function (page) {
       const tempViewport = page.getViewport({ scale: 1.0 });
       const height = tempViewport.height * 1.2 * app.pdfViewer.currentScale;
