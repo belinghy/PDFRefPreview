@@ -12,7 +12,7 @@ This script only works if the viewer is [PDF.js](https://github.com/mozilla/pdf.
 
 ## Firefox
 
-PDF.js is the default viewer in Firefox. To install the script, create a bookmark and add the code below to the `location` field.
+PDF.js is the default viewer in Firefox. To install the script, create a bookmark and add the code below to the `location` or `URL` field.
 See [issue #2](https://github.com/belinghy/PDFRefPreview/issues/2) for ideas on customizing the script to individual preferences.
 
 ```js
@@ -80,10 +80,12 @@ javascript:(async function togglePreview() {
       const scale = 4;
       const viewport = page.getViewport({
         scale: scale,
-        offsetY: (offsetY - tempViewport.height) * scale,
+        offsetY: (offsetY - tempViewport.height + 5) * scale,
       });
 
-      preview.height = viewport.height;
+      const estBlankPortion = 1 - Math.abs(offsetY - tempViewport.height) / tempViewport.height;
+      previewStyle.height = `${height * estBlankPortion}px`;
+      preview.height = viewport.height * estBlankPortion;
       preview.width = viewport.width;
 
       const renderContext = {
