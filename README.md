@@ -25,84 +25,94 @@ javascript:(async function togglePreview() {
     delete app._previewing;
     return;
   }
-
-  const box = anchor.getBoundingClientRect();
-  const halfWidth = (box.left + box.right) / 2;
-  const destinations = await app.pdfDocument.getDestinations();
+  const doc = app.pdfDocument;
   app._previewing = false;
 
-  async function mouseoverHandler(event) {
-    if (!event.target.offsetParent.hasAttribute("data-internal-link") || app._previewing) return;
-
-    const hash = event.target.hash;
-    const parent = event.target.parentElement;
-
-    const preview = document.createElement("canvas");
-    const previewStyle = preview.style;
-    previewStyle.border = "1px solid black";
-    previewStyle.direction = "ltr";
-    previewStyle.position = "fixed";
-    previewStyle.zIndex = "99";
-    previewStyle.top = `${event.clientY + 4}px`;
-    previewStyle.boxShadow = "5px 5px 5px black, -5px 5px 5px black";
-
-    const namedDest = decodeURIComponent(hash.substring(1));
-    const explicitDest =
-      namedDest in destinations
-        ? destinations[namedDest]
-        : JSON.parse(namedDest);
-    const pageNumber = app.pdfDocument.cachedPageNumber(explicitDest[0]);
-    app.pdfDocument.getPage(pageNumber).then(function (page) {
-      const tempViewport = page.getViewport({ scale: 1.0 });
-      const height = tempViewport.height * 1.2 * app.pdfViewer.currentScale;
-      const width = tempViewport.width * 1.2 * app.pdfViewer.currentScale;
-      const leftOffset =
-        event.clientX > halfWidth ? (2 * width) / 3 : width / 3;
-      previewStyle.height = `${height}px`;
-      previewStyle.width = `${width}px`;
-      previewStyle.left = `${event.clientX - leftOffset - 4}px`;
-
-      let offsetY;
-      switch (explicitDest[1].name) {
-        case "XYZ":
-          offsetY = explicitDest[3];
-          break;
-        case "FitH":
-        case "FitBH":
-        case "FitV":
-        case "FitBV":
-          offsetY = explicitDest[2];
-          break;
-        default:
-          console.log(`Oops, link ${explicitDest[1].name} is not supported.`);
+  async function resolveTarget(hash) {
+    let raw = hash.substring(1);
+    try { raw = decodeURIComponent(raw); } catch (e) { raw = unescape(raw); }
+    let dest = null;
+    let top = null;
+    if (raw.startsWith("[")) {
+      dest = JSON.parse(raw);
+    } else if (raw.includes("=")) {
+      const params = new URLSearchParams(raw);
+      if (params.has("nameddest")) {
+        dest = await doc.getDestination(params.get("nameddest"));
+      } else if (params.has("page")) {
+        const zoom = (params.get("zoom") || "").split(",");
+        if (zoom.length >= 3 && zoom[2] !== "") top = parseFloat(zoom[2]);
+        return { pageNumber: parseInt(params.get("page"), 10), top: top };
       }
+    } else {
+      dest = await doc.getDestination(raw);
+    }
+    if (!Array.isArray(dest)) return null;
+    const ref = dest[0];
+    let pageNumber;
+    if (Number.isInteger(ref)) {
+      pageNumber = ref + 1;
+    } else {
+      pageNumber = doc.cachedPageNumber(ref) || (await doc.getPageIndex(ref)) + 1;
+    }
+    switch (dest[1] && dest[1].name) {
+      case "XYZ": top = dest[3]; break;
+      case "FitH": case "FitBH": top = dest[2]; break;
+      case "FitR": top = dest[5]; break;
+    }
+    return { pageNumber: pageNumber, top: top };
+  }
 
-      const scale = 4;
-      const viewport = page.getViewport({
-        scale: scale,
-        offsetY: (offsetY - tempViewport.height + 5) * scale,
-      });
+  async function mouseoverHandler(event) {
+    const link = event.target.closest && event.target.closest("[data-internal-link] a");
+    if (!link || app._previewing) return;
+    app._previewing = true;
+    const parent = link.parentElement;
+    let left = false;
+    let preview = null;
+    parent.addEventListener("mouseleave", function () {
+      left = true;
+      if (preview) preview.remove();
+      app._previewing = false;
+    }, { once: true });
 
-      const estBlankPortion = 1 - Math.abs(offsetY - tempViewport.height) / tempViewport.height;
-      previewStyle.height = `${height * estBlankPortion}px`;
-      preview.height = viewport.height * estBlankPortion;
-      preview.width = viewport.width;
+    let target = null;
+    try { target = await resolveTarget(link.hash); } catch (e) { console.log("RefPreview: could not resolve link", link.hash, e); }
+    if (!target || left) { app._previewing = false; return; }
+    const page = await doc.getPage(target.pageNumber);
+    if (left) return;
 
-      const renderContext = {
-        canvasContext: preview.getContext("2d"),
-        viewport: viewport,
-      };
-      page.render(renderContext);
-    });
+    const base = page.getViewport({ scale: 1.0 });
+    const top = (target.top == null || isNaN(target.top)) ? base.height : target.top;
+    const cssScale = 1.2 * app.pdfViewer.currentScale;
+    const width = base.width * cssScale;
+    const frac = Math.min(1, Math.max(0.25, 1 - Math.abs(top - base.height) / base.height));
+
+    const scale = 4;
+    const viewport = page.getViewport({ scale: scale, offsetY: (top - base.height + 5) * scale });
+
+    preview = document.createElement("canvas");
+    const s = preview.style;
+    s.border = "1px solid black";
+    s.direction = "ltr";
+    s.position = "fixed";
+    s.zIndex = "99";
+    s.boxShadow = "5px 5px 5px black, -5px 5px 5px black";
+    s.background = "white";
+    const box = anchor.getBoundingClientRect();
+    const halfWidth = (box.left + box.right) / 2;
+    const leftOffset = event.clientX > halfWidth ? (2 * width) / 3 : width / 3;
+    s.left = `${event.clientX - leftOffset - 4}px`;
+    s.top = `${event.clientY + 4}px`;
+    s.width = `${width}px`;
+    s.height = `${base.height * cssScale * frac}px`;
+    preview.width = viewport.width;
+    preview.height = viewport.height * frac;
 
     anchor.prepend(preview);
-    app._previewing = true;
-
-    parent.addEventListener("mouseleave", function (event) {
-      preview.remove();
-      app._previewing = false;
-    });
+    page.render({ canvas: preview, canvasContext: preview.getContext("2d"), viewport: viewport }).promise.catch(function (e) { console.log("RefPreview: render failed", e); });
   }
+
   anchor.addEventListener("mouseover", mouseoverHandler);
   app._previewHandler = mouseoverHandler;
 })();
